@@ -42,10 +42,91 @@ cron_err(){
 		echo "${yellow}[ ${red}ERRR$yellow ]$reset  $msg"
 }
 
+
+
+cron_usage(){
+    cat <<EOM
+Usage: cronitorcli COMMAND
+
+Commands:
+  list               List all available cronitor jobs
+
+For more help, check the docs: https://github.com/philcryer/cronitorcli
+EOM
+}
+
+
+
 get_all(){
 	$curl_cmd "$cron_url" -u $user_key: | jq .
 }
-case "$1" in
+
+# process positional parameters (if provided)
+for arg
+do
+    if [[ $sub_cmd ]]; then
+        if [[ -z $sub_cmd_args ]]; then
+            sub_cmd_args="$arg"
+        else
+            sub_cmd_args="$sub_cmd_args $arg"
+        fi
+        continue
+    fi
+
+    if test -n "$prev_arg"; then
+        eval "$prev_arg=\$arg"
+        prev_arg=
+        continue
+    fi
+
+    case "$arg" in
+        -*=*) optarg=`echo "$arg" | sed 's/[-_a-zA-Z0-9]*=//'` ;;
+        *) optarg= ;;
+    esac
+
+    case "$arg" in
+        -c | --config | --confi | --conf | --con | --co | --c)
+            prev_arg=config
+            ;;
+
+        --config=* | --confi=* | --conf=* | --con=* | --co=* | --c=*)
+            config="$optarg"
+            ;;
+
+        -d | --debug | --debu | --deb | --de | -d)
+            DEBUG="ON"
+            ;;
+
+        -h | --help | --hel | --he | --h)
+            cron_usage
+            exit 0;;
+
+        -*)
+            echo "$pkg: unknown option: $arg"
+            echo "$pkg: Try '$pkg --help' for help."
+            exit 1
+            ;;
+
+        *)
+            if [[ -z $sub_cmd ]]; then
+                sub_cmd="$arg"
+            else
+                echo "$pkg: error: you should not have reached this point in the code"
+                exit 10
+            fi
+            ;;
+
+    esac
+done
+
+# make sure a command was provided
+if [[ -z $sub_cmd ]]; then
+    cron_usage
+    exit 2
+fi
+
+# commands
+case "$sub_cmd" in
 	list)
 		cron_mes "  sourcing config"
 		get_con
