@@ -42,23 +42,24 @@ cron_err(){
 		echo "${yellow}[ ${red}ERRR$yellow ]$reset  $msg"
 }
 
-
-
 cron_usage(){
     cat <<EOM
 Usage: cronitorcli COMMAND
 
 Commands:
   list               List all available cronitor jobs
+  total              List total rules defined
 
 For more help, check the docs: https://github.com/philcryer/cronitorcli
 EOM
 }
 
-
-
-get_all(){
+get_list(){
 	$curl_cmd "$cron_url" -u $user_key: | jq .
+}
+
+get_total(){
+	total=`$curl_cmd "$cron_url" -u $user_key: | jq '.["total_monitor_count"]'`
 }
 
 # process positional parameters (if provided)
@@ -128,11 +129,20 @@ fi
 # commands
 case "$sub_cmd" in
 	list)
-		cron_mes "  sourcing config"
+		cron_mes " sourcing config"
 		get_con
-		cron_mes "    will list all jobs"
-		get_all
-		cron_mes "  complete"
+		cron_mes "  will list all jobs" "++++"
+		get_list
+		cron_mes " complete"
+		;;
+
+	total)
+		cron_mes " sourcing config"
+		get_con
+		cron_mes "  total number of defined jobs" "++++"
+		get_total
+		cron_mes "  $total jobs" "iiii"
+		cron_mes " complete"
 		;;
 
 	*)
