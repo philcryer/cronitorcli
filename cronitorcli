@@ -3,6 +3,7 @@
 cron_url="https://cronitor.io/v1/monitors"
 curl_cmd="curl --silent"
 system=$(uname)
+host=$(hostname)
 
 # set colors
 red=$(tput setaf 1)
@@ -47,8 +48,9 @@ cron_usage(){
 Usage: cronitorcli COMMAND
 
 Commands:
+  failing            Currently failing jobs
   list               List all available cronitor jobs
-  total              List total rules defined
+  total              Total number of rules defined
 
 For more help, check the docs: https://github.com/philcryer/cronitorcli
 EOM
@@ -60,6 +62,30 @@ get_list(){
 
 get_total(){
 	total=`$curl_cmd "$cron_url" -u $user_key: | jq '.["total_monitor_count"]'`
+}
+
+get_failing(){
+echo "{"
+	$curl_cmd "$cron_url" -u $user_key: | jq -r '.monitors[] | select(.is_passing == false) | .name'
+echo "}"
+	$curl_cmd "$cron_url" -u $user_key: | jq -r '.monitors[] | select(.is_passing == false) | .name' > /tmp/cronitor_failing
+}
+
+put_slack(){
+    report=
+    if [[ $1 ]]; then
+        status="$1"
+    fi
+    cron_mes "posting results to slack/#cronitor-failing"
+    slack_curl="curl --silent -X POST --data-urlencode"
+    user=$(id -u -n)
+    slack_payload_prefix="payload={\"text\":\"$user@$host:"
+    cronitor_failing=`cat /tmp/cronitor_failing`
+    slack_payload="$slack_payload_prefix currently FAILING jobs `cat /tmp/cronitor_failing`\"}"
+    $slack_curl "$slack_payload" "$slack_whook" > /dev/null
+    echo "$slack_curl "$slack_payload" "$slack_whook""
+cat /tmp/cronitor_failing
+    rm /tmp/cronitor_failing
 }
 
 # process positional parameters (if provided)
@@ -128,6 +154,24 @@ fi
 
 # commands
 case "$sub_cmd" in
+
+	failing)
+		cron_mes " sourcing config"
+		get_con
+		cron_mes "  currently failing jobs" "++++"
+		get_failing
+		cron_mes " complete"
+		;;
+
+	failing-slack)
+		cron_mes " sourcing config"
+		get_con
+		cron_mes "  will post currently failing jobs to slack" "++++"
+		get_failing
+    put_slack
+		cron_mes " complete"
+		;;
+
 	list)
 		cron_mes " sourcing config"
 		get_con
