@@ -1,0 +1,64 @@
+#!/bin/bash
+
+cron_url="https://cronitor.io/v1/monitors"
+curl_cmd="curl --silent"
+system=$(uname)
+
+# set colors
+red=$(tput setaf 1)
+green=$(tput setaf 2)
+yellow=$(tput setaf 3)
+blue=$(tput setaf 4)
+purple=$(tput setaf 5)
+cyan=$(tput setaf 6)
+white=$(tput setaf 7)
+reset=$(tput sgr0)
+
+get_con(){
+	if [ '${PWD}/cronitorcli.conf' ]; then
+		source ${PWD}/cronitorcli.conf
+else
+	if [ '${HOME}/.cronitorcli.conf' ]; then
+		source ${HOME}/.cronitorcli.conf
+	fi
+fi
+}
+
+cron_mes(){
+	declare msg="$1"
+  [[ $quiet ]] && return
+		shift
+		pref="----"
+	if [[ $1 ]]; then
+		pref="${1:0:4}"
+    shift
+ 	 fi
+	echo "${yellow}[ $cyan$pref$yellow ]$reset  $msg"
+}
+
+cron_err(){
+	declare msg="$1"
+		cron-logger "ERROR: $msg"
+		echo "${yellow}[ ${red}ERRR$yellow ]$reset  $msg"
+}
+
+get_all(){
+	$curl_cmd "$cron_url" -u $user_key: | jq .
+}
+case "$1" in
+	list)
+		cron_mes "  sourcing config"
+		get_con
+		cron_mes "    will list all jobs"
+		get_all
+		cron_mes "  complete"
+		;;
+
+	*)
+		cron_mes "unknown command $1"
+		exit 2
+		;;
+
+esac
+
+exit 0

@@ -1,0 +1,9 @@
+## cronitorcli.conf - optional parameters specific to your environment
+
+# cronitorcli expects this file at:
+# ${PWD}/cronitorcli.conf
+# or
+# ${HOME}/.cronitorcli.conf
+
+# user API key (available at https://cronitor.io/settings)
+#user_key=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
