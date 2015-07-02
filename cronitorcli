@@ -4,6 +4,8 @@ cron_url="https://cronitor.io/v1/monitors"
 curl_cmd="curl --silent"
 system=$(uname)
 host=$(hostname)
+datestamp=$(date +'%Y%m%d-%H%M%S')
+report=/tmp/cronitorcli_report_${datestamp}.json
 
 # set colors
 red=$(tput setaf 1)
@@ -15,7 +17,8 @@ cyan=$(tput setaf 6)
 white=$(tput setaf 7)
 reset=$(tput sgr0)
 
-get_con(){
+
+src_conf(){
 	if [ '${PWD}/cronitorcli.conf' ]; then
 		source ${PWD}/cronitorcli.conf
 else
@@ -48,44 +51,59 @@ cron_usage(){
 Usage: cronitorcli COMMAND
 
 Commands:
-  failing            Currently failing jobs
+  failing            Show currently failing jobs
   list               List all available cronitor jobs
-  total              Total number of rules defined
+  report             Get a full report of the current jobs in json format
+  status             Get the latest status on total number of jobs and failing ones
+  status-slack       Same as status, but also post results to Slack (define slack_whook in config)
+  total              Display the total number of rules defined
 
 For more help, check the docs: https://github.com/philcryer/cronitorcli
 EOM
 }
 
+get_json(){
+	if [ -f '${report}' ]; then
+		rm ${report}
+	fi
+	cron_mes "  retrieving report " "++++"
+	$curl_cmd "$cron_url" -u $user_key: | jq . > ${report}
+	cron_mes "  report saved to ${report} " "iiii"
+}
+
 get_list(){
-	$curl_cmd "$cron_url" -u $user_key: | jq .
+	cat ${report}
+	cron_mes "  report saved to ${report} " "iiii"
 }
 
 get_total(){
-	total=`$curl_cmd "$cron_url" -u $user_key: | jq '.["total_monitor_count"]'`
+	total=$(cat ${report} | jq '.["total_monitor_count"]')
 }
 
 get_failing(){
-echo "{"
-	$curl_cmd "$cron_url" -u $user_key: | jq -r '.monitors[] | select(.is_passing == false) | .name'
-echo "}"
-	$curl_cmd "$cron_url" -u $user_key: | jq -r '.monitors[] | select(.is_passing == false) | .name' > /tmp/cronitor_failing
+	if [ -f '${report}.out' ]; then
+		rm ${report}.out
+	fi
+	echo "{"
+	cat ${report} | jq -r '.monitors[] | select(.is_passing == false) | .name' | tee ${report}.out
+	echo "}"
 }
 
 put_slack(){
-    report=
-    if [[ $1 ]]; then
-        status="$1"
-    fi
-    cron_mes "posting results to slack/#cronitor-failing"
+#    report=
+#    if [[ $1 ]]; then
+#        status="$1"
+#    fi
+    cron_mes "posting results to slack/#cronitor-failing" "++++"
     slack_curl="curl --silent -X POST --data-urlencode"
     user=$(id -u -n)
     slack_payload_prefix="payload={\"text\":\"$user@$host:"
-    cronitor_failing=`cat /tmp/cronitor_failing`
-    slack_payload="$slack_payload_prefix currently FAILING jobs `cat /tmp/cronitor_failing`\"}"
+    slack_payload_postfix=`cat ${report}.out`
+    echo $slack_payload_postfix
+exit 0
+    slack_payload="$slack_payload_prefix :: $slack_payload_postfix\"}"
     $slack_curl "$slack_payload" "$slack_whook" > /dev/null
     echo "$slack_curl "$slack_payload" "$slack_whook""
-cat /tmp/cronitor_failing
-    rm /tmp/cronitor_failing
 }
 
 # process positional parameters (if provided)
@@ -156,33 +174,57 @@ fi
 case "$sub_cmd" in
 
 	failing)
-		cron_mes " sourcing config"
-		get_con
-		cron_mes "  currently failing jobs" "++++"
+		cron_mes " sourcing config" "++++"
+		src_conf
+		get_json
+		cron_mes "  currently failing jobs" "iiii"
 		get_failing
-		cron_mes " complete"
-		;;
-
-	failing-slack)
-		cron_mes " sourcing config"
-		get_con
-		cron_mes "  will post currently failing jobs to slack" "++++"
-		get_failing
-    put_slack
 		cron_mes " complete"
 		;;
 
 	list)
-		cron_mes " sourcing config"
-		get_con
+		cron_mes " sourcing config" "++++"
+		src_conf
+		get_json
 		cron_mes "  will list all jobs" "++++"
 		get_list
 		cron_mes " complete"
 		;;
 
+  report)
+		cron_mes " sourcing config" "++++"
+		src_conf
+		get_json
+		cron_mes " complete"
+		;;
+
+	status)
+		cron_mes " sourcing config" "++++"
+		src_conf
+		get_json
+		get_total
+		cron_mes "  $total jobs" "iiii"
+		cron_mes "  currently failing jobs" "++++"
+		get_failing
+		cron_mes " complete"
+		;;
+
+	status-slack)
+		cron_mes " sourcing config" "++++"
+		src_conf
+		get_json
+		get_total
+		cron_mes "  $total jobs" "iiii"
+		cron_mes "  currently failing jobs" "++++"
+		get_failing
+    put_slack
+		cron_mes " complete"
+		;;
+
 	total)
-		cron_mes " sourcing config"
-		get_con
+		cron_mes " sourcing config" "++++"
+		src_conf
+		get_json
 		cron_mes "  total number of defined jobs" "++++"
 		get_total
 		cron_mes "  $total jobs" "iiii"
