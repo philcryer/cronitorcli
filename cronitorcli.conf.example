@@ -5,5 +5,8 @@
 # or
 # ${HOME}/.cronitorcli.conf
 
-# user API key (available at https://cronitor.io/settings)
+# Cronitor user API key (available at https://cronitor.io/settings)
 #user_key=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Slack API (web hook)
+#slack_whook=https://hooks.slack.com/services/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx

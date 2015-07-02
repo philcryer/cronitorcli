@@ -53,7 +53,6 @@ Usage: cronitorcli COMMAND
 Commands:
   failing            Show currently failing jobs
   list               List all available cronitor jobs
-  report             Get a full report of the current jobs in json format
   status             Get the latest status on total number of jobs and failing ones
   status-slack       Same as status, but also post results to Slack (define slack_whook in config)
   total              Display the total number of rules defined
@@ -90,20 +89,30 @@ get_failing(){
 }
 
 put_slack(){
-#    report=
-#    if [[ $1 ]]; then
-#        status="$1"
-#    fi
     cron_mes "posting results to slack/#cronitor-failing" "++++"
     slack_curl="curl --silent -X POST --data-urlencode"
     user=$(id -u -n)
-    slack_payload_prefix="payload={\"text\":\"$user@$host:"
+#    slack_payload_prefix="payload={\"text\":\"$user@$host:"
+    slack_payload_prefix="payload={\"channel\":\"#stax\",\"username\":\"staxbot\",\"icon_emoji\":\":ghost:\",\"text\":\"$user@$host:"
+
+    #slack_payload_postfix=$(${report}.out)
     slack_payload_postfix=`cat ${report}.out`
-    echo $slack_payload_postfix
-exit 0
-    slack_payload="$slack_payload_prefix :: $slack_payload_postfix\"}"
+
+    #slack_payload="$slack_payload_prefix currently $slack_payload_postfix\"}"
+    #slack_payload="$slack_payload_prefix currently failing jobs $slack_payload_postfix"
+    #$slack_curl "$slack_payload" "$slack_whook" > /dev/null
+    #echo "$slack_curl "$slack_payload" "$slack_whook""
+
+		slack_payload="'payload={"channel": "#cronitor-failing", "username": "cronitor-bot", "text": "${slack_payload_postfix}", "icon_emoji": ":ghost:"}'"
     $slack_curl "$slack_payload" "$slack_whook" > /dev/null
-    echo "$slack_curl "$slack_payload" "$slack_whook""
+
+#curl -X POST --data-urlencode 'payload={"channel": "#cronitor-failing", "username": "cronitor-bot", "text": "${slack_payload}", "icon_emoji": ":ghost:"}' "$slack_whook"
+
+#curl -X POST --data-urlencode 'payload={"channel": "#cronitor-failing", "username": "cronitor-bot", "text": "`echo $slack_payload`", "icon_emoji": ":ghost:"}' https://hooks.slack.com/services/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
+
+#curl -X POST --data-urlencode 'payload={"channel": "#cronitor-failing", "username": "webhookbot", "text": "This is posted to #cronitor-failing and comes from a bot named webhookbot.", "icon_emoji": ":ghost:"}' https://hooks.slack.com/services/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
+
+
 }
 
 # process positional parameters (if provided)
@@ -177,7 +186,7 @@ case "$sub_cmd" in
 		cron_mes " sourcing config" "++++"
 		src_conf
 		get_json
-		cron_mes "  currently failing jobs" "iiii"
+		cron_mes "  list failing jobs" "++++"
 		get_failing
 		cron_mes " complete"
 		;;
@@ -188,13 +197,6 @@ case "$sub_cmd" in
 		get_json
 		cron_mes "  will list all jobs" "++++"
 		get_list
-		cron_mes " complete"
-		;;
-
-  report)
-		cron_mes " sourcing config" "++++"
-		src_conf
-		get_json
 		cron_mes " complete"
 		;;
 
